@@ -113,18 +113,63 @@ const groupedShoppingList = computed(() => {
   return groups
 })
 
-// Fetch recurring items
-const { data: recurringItems } = await useAsyncData('recurring-items', async () => {
+// Fetch all recurring items (all users have read access for suggestions)
+const { data: allRecurringItems } = await useAsyncData('recurring-items', async () => {
   if (!user.value) return []
   const { data, error } = await supabase
     .from('recurring_items')
     .select('*')
-    .eq('created_by', user.value.sub)
   if (error) throw error
   return data
 }, {
   watch: [user]
 })
+
+const myRecurringItems = computed(() => {
+  if (!allRecurringItems.value || !user.value) return []
+  return allRecurringItems.value.filter(item => item.created_by === user.value.sub)
+})
+
+const suggestedItems = computed(() => {
+  if (!allRecurringItems.value) return []
+
+  const now = new Date()
+  return allRecurringItems.value.filter((item) => {
+    // Already in the shopping list?
+    const isInList = listItems.value?.some(li => li.recurring_item_id === item.id)
+    if (isInList) return false
+
+    if (!item.last_bought) return true
+
+    const lastBought = new Date(item.last_bought)
+    const frequencyWeeks = item.frequency || 1
+    const nextDue = new Date(lastBought)
+    nextDue.setDate(nextDue.getDate() + (frequencyWeeks * 7))
+
+    return now >= nextDue
+  })
+})
+
+async function addSuggestedItem(item: { id: number, name: string }) {
+  if (!user.value) return
+
+  try {
+    const { error } = await supabase
+      .from('list_items')
+      .insert({
+        name: item.name,
+        user_id: user.value.sub,
+        recurring_item_id: item.id,
+        quantity: 1
+      })
+
+    if (error) throw error
+
+    await refreshNuxtData('shopping-list')
+  } catch (error) {
+    console.error('Error adding suggested item:', error)
+  }
+}
 </script>
 
 <template>
@@ -153,6 +198,25 @@ const { data: recurringItems } = await useAsyncData('recurring-items', async () 
       <template #content="{ item }">
         <!-- Shopping List Tab -->
         <div v-if="item.value === 'shopping-list'" class="space-y-6 pt-4">
+          <!-- Suggested Items -->
+          <div v-if="suggestedItems.length > 0" class="space-y-2">
+            <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider px-2">
+              Suggestions
+            </h2>
+            <div class="flex flex-wrap gap-2 px-2">
+              <UButton
+                v-for="suggested in suggestedItems"
+                :key="suggested.id"
+                size="xs"
+                variant="soft"
+                icon="i-lucide-plus"
+                @click="addSuggestedItem(suggested)"
+              >
+                {{ suggested.name }}
+              </UButton>
+            </div>
+          </div>
+
           <!-- Add Item Form -->
           <UCard>
             <form class="space-y-4" @submit.prevent="addItem">
@@ -232,7 +296,7 @@ const { data: recurringItems } = await useAsyncData('recurring-items', async () 
 
           <UCard :ui="{ body: 'p-0' }">
             <ul class="divide-y divide-gray-200 dark:divide-gray-800">
-              <li v-for="recItem in recurringItems" :key="recItem.id" class="p-4">
+              <li v-for="recItem in myRecurringItems" :key="recItem.id" class="p-4">
                 <div class="flex items-center justify-between mb-1">
                   <span class="font-medium">{{ recItem.name }}</span>
                   <UButton
@@ -240,6 +304,7 @@ const { data: recurringItems } = await useAsyncData('recurring-items', async () 
                     size="sm"
                     variant="soft"
                     label="Add to List"
+                    @click="addSuggestedItem(recItem)"
                   />
                 </div>
                 <div class="text-xs text-gray-500 flex gap-4">
