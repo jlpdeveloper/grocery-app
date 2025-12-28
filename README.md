@@ -1,60 +1,69 @@
-# Nuxt Starter Template
+# Family Grocery App
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+A mobile-friendly family grocery application built with Nuxt 4, Nuxt UI, and Supabase. This app allows family members to maintain individual recurring grocery lists and a shared shopping list.
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+## 🚀 Features
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+- **Collaborative Shopping List**: View items from all users, grouped by display name.
+- **Recurring Items**: Personal management of frequent purchases with customizable frequency.
+- **Easy Addition**: Quickly copy recurring items to the main shopping list.
+- **Smart Completion**: Marking items as "bought" updates the `last_bought` date on linked recurring items.
+- **Mobile-First Design**: Optimized for handheld use with a responsive interface.
+- **Secure Authentication**: Support for Email/Password and Magic Link via Supabase.
 
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-  </picture>
-</a>
+## 🛠 Tech Stack
 
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
+- **Framework**: [Nuxt 4](https://nuxt.com/)
+- **UI Components**: [Nuxt UI](https://ui.nuxt.com/)
+- **Backend/Auth/Database**: [Supabase](https://supabase.com/)
+- **Icons**: [Lucide](https://lucide.dev/) (via Nuxt UI)
 
-## Quick Start
+## 🔐 Security Warning (Critical)
 
-```bash [Terminal]
-npm create nuxt@latest -- -t github:nuxt-ui-templates/starter
-```
+This project uses environment variables for sensitive configurations. **Never commit your `.env` or `.env.local` files to a public repository.**
 
-## Deploy your own
+1. Ensure `.env` and `.env.local` are in your `.gitignore`.
+2. Use the provided `.env.example` as a template for your local setup.
+3. Keep your Supabase Service Role keys secret and only use them in server-side code if necessary.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
+## 🏁 Getting Started
 
-## Setup
+### Prerequisites
 
-Make sure to install the dependencies:
+- [Node.js](https://nodejs.org/) (includes npm) installed.
+- A [Supabase](https://supabase.com/) project.
 
+### Setup
+
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Copy `.env.example` to `.env` and fill in your Supabase credentials:
+   ```bash
+   cp .env.example .env
+   ```
+
+### Development
+
+Start the development server:
 ```bash
-pnpm install
+npm run dev
 ```
 
-## Development Server
+### Production
 
-Start the development server on `http://localhost:3000`:
-
+Build for production:
 ```bash
-pnpm dev
+npm run build
 ```
 
-## Production
-
-Build the application for production:
-
+Preview the production build locally:
 ```bash
-pnpm build
+npm run preview
 ```
 
-Locally preview production build:
+## 📜 License
 
-```bash
-pnpm preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
