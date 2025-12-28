@@ -22,9 +22,8 @@ const quantity = ref(1)
 const isSubmitting = ref(false)
 const checkedItems = ref<Set<number>>(new Set())
 
-// Edit Modal State
-const showEditModal = ref(false)
-const editingItem = ref<{ id: number, name: string } | null>(null)
+// Inline Edit State
+const editingId = ref<number | null>(null)
 const editName = ref('')
 const isUpdating = ref(false)
 
@@ -268,14 +267,14 @@ async function markAsBought() {
 }
 
 async function handleUpdateName() {
-  if (!editingItem.value || !editName.value) return
+  if (editingId.value === null || !editName.value) return
 
   isUpdating.value = true
   try {
     const { error } = await supabase
       .from('recurring_items')
       .update({ name: editName.value })
-      .eq('id', editingItem.value.id)
+      .eq('id', editingId.value)
 
     if (error) throw error
 
@@ -286,7 +285,7 @@ async function handleUpdateName() {
     })
 
     await refreshNuxtData('recurring-items')
-    showEditModal.value = false
+    editingId.value = null
   } catch (error) {
     const err = error as { message?: string }
     toast.add({
@@ -489,17 +488,43 @@ function formatDate(dateString: string) {
             <ul class="divide-y divide-gray-200 dark:divide-gray-800">
               <li v-for="recItem in myRecurringItems" :key="recItem.id" class="p-4">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-medium">{{ recItem.name }}</span>
-                  <div class="flex gap-2">
+                  <div v-if="editingId === recItem.id" class="flex-1 flex items-center gap-2 mr-4">
+                    <UInput
+                      v-model="editName"
+                      class="flex-1"
+                      size="sm"
+                      @keyup.enter="handleUpdateName"
+                      @keyup.esc="editingId = null"
+                    />
+                    <div class="flex gap-1">
+                      <UButton
+                        icon="i-lucide-check"
+                        size="sm"
+                        color="success"
+                        variant="ghost"
+                        :loading="isUpdating"
+                        @click="handleUpdateName"
+                      />
+                      <UButton
+                        icon="i-lucide-x"
+                        size="sm"
+                        color="error"
+                        variant="ghost"
+                        @click="editingId = null"
+                      />
+                    </div>
+                  </div>
+                  <span v-else class="font-medium">{{ recItem.name }}</span>
+
+                  <div v-if="editingId !== recItem.id" class="flex gap-2">
                     <UButton
                       icon="i-lucide-pencil"
                       size="sm"
                       variant="ghost"
                       color="neutral"
                       @click="() => {
-                        editingItem = recItem
+                        editingId = recItem.id
                         editName = recItem.name
-                        showEditModal = true
                       }"
                     />
                     <UButton
@@ -532,40 +557,19 @@ function formatDate(dateString: string) {
       </template>
     </UTabs>
 
-    <!-- Edit Modal -->
-    <UModal v-model="showEditModal" title="Edit Recurring Item">
-      <template #content>
-        <div class="p-4 space-y-4">
-          <UFormField label="Item Name">
-            <UInput v-model="editName" placeholder="e.g. Milk" class="w-full" />
-          </UFormField>
-          <div class="flex justify-end gap-3">
-            <UButton variant="ghost" color="neutral" @click="showEditModal = false">
-              Cancel
-            </UButton>
-            <UButton :loading="isUpdating" :disabled="!editName" @click="handleUpdateName">
-              Save
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
     <!-- Delete Modal -->
     <UModal v-model="showDeleteModal" title="Delete Recurring Item">
-      <template #content>
-        <div class="p-4 space-y-4">
-          <p>Are you sure you want to delete "{{ deletingItem?.name }}"? This action cannot be undone.</p>
-          <div class="flex justify-end gap-3">
-            <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">
-              Cancel
-            </UButton>
-            <UButton color="error" :loading="isDeleting" @click="handleDeleteRecurringItem">
-              Delete
-            </UButton>
-          </div>
+      <div class="p-4 space-y-4">
+        <p>Are you sure you want to delete "{{ deletingItem?.name }}"? This action cannot be undone.</p>
+        <div class="flex justify-end gap-3">
+          <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">
+            Cancel
+          </UButton>
+          <UButton color="error" :loading="isDeleting" @click="handleDeleteRecurringItem">
+            Delete
+          </UButton>
         </div>
-      </template>
+      </div>
     </UModal>
   </div>
 </template>
