@@ -18,7 +18,13 @@ const activeTab = ref('shopping-list')
 const newItemName = ref('')
 const isRecurring = ref(false)
 const frequency = ref(1)
+const quantity = ref(1)
 const isSubmitting = ref(false)
+
+const quantityOptions = Array.from({ length: 10 }, (_, i) => ({
+  label: (i + 1).toString(),
+  value: i + 1
+}))
 
 async function addItem() {
   if (!newItemName.value || !user.value) return
@@ -49,7 +55,7 @@ async function addItem() {
         name: newItemName.value,
         user_id: user.value.sub,
         recurring_item_id: recurringItemId,
-        quantity: 1
+        quantity: quantity.value
       })
 
     if (listError) throw listError
@@ -58,6 +64,7 @@ async function addItem() {
     newItemName.value = ''
     isRecurring.value = false
     frequency.value = 1
+    quantity.value = 1
 
     // Refresh data
     await refreshNuxtData(['shopping-list', 'recurring-items'])
@@ -152,6 +159,14 @@ const { data: recurringItems } = await useAsyncData('recurring-items', async () 
               <div class="flex flex-col sm:flex-row gap-4 items-end">
                 <UFormField label="Item Name" class="flex-1 w-full">
                   <UInput v-model="newItemName" placeholder="e.g. Milk" class="w-full" />
+                </UFormField>
+
+                <UFormField label="Qty" class="w-20">
+                  <USelect
+                    v-model="quantity"
+                    :items="quantityOptions"
+                    class="w-full"
+                  />
                 </UFormField>
 
                 <div class="flex items-center gap-4 h-10">
