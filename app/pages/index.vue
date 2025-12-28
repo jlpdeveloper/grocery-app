@@ -22,6 +22,17 @@ const quantity = ref(1)
 const isSubmitting = ref(false)
 const checkedItems = ref<Set<number>>(new Set())
 
+// Inline Edit State
+const editingId = ref<number | null>(null)
+const editName = ref('')
+const isUpdating = ref(false)
+
+// Delete State
+const deletingId = ref<number | null>(null)
+const isDeleting = ref(false)
+
+const toast = useToast()
+
 const quantityOptions = Array.from({ length: 10 }, (_, i) => ({
   label: (i + 1).toString(),
   value: i + 1
@@ -61,6 +72,12 @@ async function addItem() {
 
     if (listError) throw listError
 
+    toast.add({
+      title: 'Success',
+      description: `Added ${newItemName.value} to list`,
+      color: 'success'
+    })
+
     // Reset form
     newItemName.value = ''
     isRecurring.value = false
@@ -70,6 +87,12 @@ async function addItem() {
     // Refresh data
     await refreshNuxtData(['shopping-list', 'recurring-items'])
   } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to add item',
+      color: 'error'
+    })
     console.error('Error adding item:', error)
   } finally {
     isSubmitting.value = false
@@ -154,6 +177,17 @@ const suggestedItems = computed(() => {
 async function addSuggestedItem(item: { id: number, name: string }) {
   if (!user.value) return
 
+  // Check if item is already in the list to prevent duplicates
+  const isInList = listItems.value?.some(li => li.recurring_item_id === item.id)
+  if (isInList) {
+    toast.add({
+      title: 'Info',
+      description: `${item.name} is already in your list`,
+      color: 'info'
+    })
+    return
+  }
+
   try {
     const { error } = await supabase
       .from('list_items')
@@ -166,8 +200,20 @@ async function addSuggestedItem(item: { id: number, name: string }) {
 
     if (error) throw error
 
+    toast.add({
+      title: 'Success',
+      description: `Added ${item.name} to list`,
+      color: 'success'
+    })
+
     await refreshNuxtData('shopping-list')
   } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to add item',
+      color: 'error'
+    })
     console.error('Error adding suggested item:', error)
   }
 }
@@ -227,6 +273,68 @@ async function markAsBought() {
     await refreshNuxtData(['shopping-list', 'recurring-items'])
   } catch (error) {
     console.error('Error marking items as bought:', error)
+  }
+}
+
+async function handleUpdateName() {
+  if (editingId.value === null || !editName.value) return
+
+  isUpdating.value = true
+  try {
+    const { error } = await supabase
+      .from('recurring_items')
+      .update({ name: editName.value })
+      .eq('id', editingId.value)
+
+    if (error) throw error
+
+    toast.add({
+      title: 'Success',
+      description: 'Item updated successfully',
+      color: 'success'
+    })
+
+    await refreshNuxtData('recurring-items')
+    editingId.value = null
+  } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to update item',
+      color: 'error'
+    })
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+async function handleDeleteRecurringItem(id: number) {
+  isDeleting.value = true
+  try {
+    const { error } = await supabase
+      .from('recurring_items')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+
+    toast.add({
+      title: 'Success',
+      description: 'Item deleted successfully',
+      color: 'success'
+    })
+
+    await refreshNuxtData('recurring-items')
+    deletingId.value = null
+  } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to delete item',
+      color: 'error'
+    })
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -382,23 +490,89 @@ function formatDate(dateString: string) {
             <h2 class="text-lg font-semibold">
               My Recurring Items
             </h2>
-            <UButton icon="i-lucide-plus" size="sm">
-              Add Item
-            </UButton>
           </div>
 
           <UCard :ui="{ body: 'p-0' }">
             <ul class="divide-y divide-gray-200 dark:divide-gray-800">
               <li v-for="recItem in myRecurringItems" :key="recItem.id" class="p-4">
                 <div class="flex items-center justify-between mb-1">
-                  <span class="font-medium">{{ recItem.name }}</span>
-                  <UButton
-                    icon="i-lucide-shopping-cart"
-                    size="sm"
-                    variant="soft"
-                    label="Add to List"
-                    @click="addSuggestedItem(recItem)"
-                  />
+                  <div v-if="editingId === recItem.id" class="flex-1 flex items-center gap-2 mr-4">
+                    <UInput
+                      v-model="editName"
+                      class="flex-1"
+                      size="sm"
+                      @keyup.enter="handleUpdateName"
+                      @keyup.esc="editingId = null"
+                    />
+                    <div class="flex gap-1">
+                      <UButton
+                        icon="i-lucide-check"
+                        size="sm"
+                        color="success"
+                        variant="ghost"
+                        :loading="isUpdating"
+                        @click="handleUpdateName"
+                      />
+                      <UButton
+                        icon="i-lucide-x"
+                        size="sm"
+                        color="error"
+                        variant="ghost"
+                        @click="editingId = null"
+                      />
+                    </div>
+                  </div>
+                  <span v-else class="font-medium">{{ recItem.name }}</span>
+
+                  <div v-if="editingId !== recItem.id" class="flex gap-2">
+                    <div v-if="deletingId === recItem.id" class="flex items-center gap-1 bg-error-50 dark:bg-error-950/30 px-2 py-1 rounded-md">
+                      <span class="text-xs font-medium text-error-600 dark:text-error-400 mr-1">Delete?</span>
+                      <UButton
+                        icon="i-lucide-check"
+                        size="xs"
+                        color="error"
+                        variant="ghost"
+                        :loading="isDeleting"
+                        @click="handleDeleteRecurringItem(recItem.id)"
+                      />
+                      <UButton
+                        icon="i-lucide-x"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        @click="deletingId = null"
+                      />
+                    </div>
+                    <template v-else>
+                      <UButton
+                        icon="i-lucide-pencil"
+                        size="sm"
+                        variant="ghost"
+                        color="neutral"
+                        :disabled="deletingId !== null || editingId !== null"
+                        @click="() => {
+                          editingId = recItem.id
+                          editName = recItem.name
+                        }"
+                      />
+                      <UButton
+                        icon="i-lucide-trash-2"
+                        size="sm"
+                        variant="ghost"
+                        color="error"
+                        :disabled="deletingId !== null || editingId !== null"
+                        @click="deletingId = recItem.id"
+                      />
+                      <UButton
+                        icon="i-lucide-shopping-cart"
+                        size="sm"
+                        variant="soft"
+                        :label="listItems?.some(li => li.recurring_item_id === recItem.id) ? 'In List' : 'Add to List'"
+                        :disabled="listItems?.some(li => li.recurring_item_id === recItem.id) || deletingId !== null || editingId !== null"
+                        @click="addSuggestedItem(recItem)"
+                      />
+                    </template>
+                  </div>
                 </div>
                 <div class="text-xs text-gray-500 flex gap-4">
                   <span>Every {{ recItem.frequency }} {{ recItem.frequency_type }}</span>
