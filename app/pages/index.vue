@@ -27,9 +27,8 @@ const editingId = ref<number | null>(null)
 const editName = ref('')
 const isUpdating = ref(false)
 
-// Delete Modal State
-const showDeleteModal = ref(false)
-const deletingItem = ref<{ id: number, name: string } | null>(null)
+// Delete State
+const deletingId = ref<number | null>(null)
 const isDeleting = ref(false)
 
 const toast = useToast()
@@ -309,15 +308,13 @@ async function handleUpdateName() {
   }
 }
 
-async function handleDeleteRecurringItem() {
-  if (!deletingItem.value) return
-
+async function handleDeleteRecurringItem(id: number) {
   isDeleting.value = true
   try {
     const { error } = await supabase
       .from('recurring_items')
       .delete()
-      .eq('id', deletingItem.value.id)
+      .eq('id', id)
 
     if (error) throw error
 
@@ -328,7 +325,7 @@ async function handleDeleteRecurringItem() {
     })
 
     await refreshNuxtData('recurring-items')
-    showDeleteModal.value = false
+    deletingId.value = null
   } catch (error) {
     const err = error as { message?: string }
     toast.add({
@@ -528,34 +525,53 @@ function formatDate(dateString: string) {
                   <span v-else class="font-medium">{{ recItem.name }}</span>
 
                   <div v-if="editingId !== recItem.id" class="flex gap-2">
-                    <UButton
-                      icon="i-lucide-pencil"
-                      size="sm"
-                      variant="ghost"
-                      color="neutral"
-                      @click="() => {
-                        editingId = recItem.id
-                        editName = recItem.name
-                      }"
-                    />
-                    <UButton
-                      icon="i-lucide-trash-2"
-                      size="sm"
-                      variant="ghost"
-                      color="error"
-                      @click="() => {
-                        deletingItem = recItem
-                        showDeleteModal = true
-                      }"
-                    />
-                    <UButton
-                      icon="i-lucide-shopping-cart"
-                      size="sm"
-                      variant="soft"
-                      :label="listItems?.some(li => li.recurring_item_id === recItem.id) ? 'In List' : 'Add to List'"
-                      :disabled="listItems?.some(li => li.recurring_item_id === recItem.id)"
-                      @click="addSuggestedItem(recItem)"
-                    />
+                    <div v-if="deletingId === recItem.id" class="flex items-center gap-1 bg-error-50 dark:bg-error-950/30 px-2 py-1 rounded-md">
+                      <span class="text-xs font-medium text-error-600 dark:text-error-400 mr-1">Delete?</span>
+                      <UButton
+                        icon="i-lucide-check"
+                        size="xs"
+                        color="error"
+                        variant="ghost"
+                        :loading="isDeleting"
+                        @click="handleDeleteRecurringItem(recItem.id)"
+                      />
+                      <UButton
+                        icon="i-lucide-x"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        @click="deletingId = null"
+                      />
+                    </div>
+                    <template v-else>
+                      <UButton
+                        icon="i-lucide-pencil"
+                        size="sm"
+                        variant="ghost"
+                        color="neutral"
+                        :disabled="deletingId !== null || editingId !== null"
+                        @click="() => {
+                          editingId = recItem.id
+                          editName = recItem.name
+                        }"
+                      />
+                      <UButton
+                        icon="i-lucide-trash-2"
+                        size="sm"
+                        variant="ghost"
+                        color="error"
+                        :disabled="deletingId !== null || editingId !== null"
+                        @click="deletingId = recItem.id"
+                      />
+                      <UButton
+                        icon="i-lucide-shopping-cart"
+                        size="sm"
+                        variant="soft"
+                        :label="listItems?.some(li => li.recurring_item_id === recItem.id) ? 'In List' : 'Add to List'"
+                        :disabled="listItems?.some(li => li.recurring_item_id === recItem.id) || deletingId !== null || editingId !== null"
+                        @click="addSuggestedItem(recItem)"
+                      />
+                    </template>
                   </div>
                 </div>
                 <div class="text-xs text-gray-500 flex gap-4">
@@ -568,20 +584,5 @@ function formatDate(dateString: string) {
         </div>
       </template>
     </UTabs>
-
-    <!-- Delete Modal -->
-    <UModal v-model="showDeleteModal" title="Delete Recurring Item">
-      <div class="p-4 space-y-4">
-        <p>Are you sure you want to delete "{{ deletingItem?.name }}"? This action cannot be undone.</p>
-        <div class="flex justify-end gap-3">
-          <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">
-            Cancel
-          </UButton>
-          <UButton color="error" :loading="isDeleting" @click="handleDeleteRecurringItem">
-            Delete
-          </UButton>
-        </div>
-      </div>
-    </UModal>
   </div>
 </template>
