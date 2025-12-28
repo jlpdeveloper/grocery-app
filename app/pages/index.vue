@@ -291,13 +291,13 @@ function formatDate(dateString: string) {
 
           <!-- Add Item Form -->
           <UCard>
-            <form class="space-y-4" @submit.prevent="addItem">
-              <div class="flex flex-col sm:flex-row gap-4 items-end">
-                <UFormField label="Item Name" class="flex-1 w-full">
+            <form @submit.prevent="addItem">
+              <div class="grid grid-cols-12 gap-4 items-end">
+                <UFormField label="Item Name" class="col-span-12 sm:col-span-4">
                   <UInput v-model="newItemName" placeholder="e.g. Milk" class="w-full" />
                 </UFormField>
 
-                <UFormField label="Qty" class="w-20">
+                <UFormField label="Qty" class="col-span-4 sm:col-span-2">
                   <USelect
                     v-model="quantity"
                     :items="quantityOptions"
@@ -305,22 +305,25 @@ function formatDate(dateString: string) {
                   />
                 </UFormField>
 
-                <div class="flex items-center gap-4 h-10">
+                <div class="col-span-8 sm:col-span-2 flex items-center h-10 px-1">
                   <UCheckbox v-model="isRecurring" label="Recurring?" />
                 </div>
 
-                <UFormField v-if="isRecurring" label="Every (weeks)" class="w-24">
+                <UFormField v-if="isRecurring" label="Every (wks)" class="col-span-6 sm:col-span-2">
                   <UInput v-model="frequency" type="number" min="1" />
                 </UFormField>
 
-                <UButton
-                  type="submit"
-                  icon="i-lucide-plus"
-                  :loading="isSubmitting"
-                  :disabled="!newItemName"
-                >
-                  Add
-                </UButton>
+                <div :class="[isRecurring ? 'col-span-6 sm:col-span-2' : 'col-span-12 sm:col-span-4', 'flex justify-end']">
+                  <UButton
+                    type="submit"
+                    icon="i-lucide-plus"
+                    :loading="isSubmitting"
+                    :disabled="!newItemName"
+                    class="w-full sm:w-auto"
+                  >
+                    Add
+                  </UButton>
+                </div>
               </div>
             </form>
           </UCard>
