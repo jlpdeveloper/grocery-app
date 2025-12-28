@@ -34,3 +34,9 @@ As a Nuxt application, it can be deployed to various platforms:
 ## Post-Deployment
 - Verify that Row Level Security (RLS) policies are active.
 - Ensure the `auth.users` trigger (if any) or initial user profile creation is functioning correctly.
+
+
+## Sevalla Deployment
+I chose to deploy using [Sevalla](https://sevalla.com/) using their static site generation.
+To use this, ensure that your SUPABASE_URL and SUPABASE_KEY environment variables are correctly set.
+Sevalla uses the `npm run generate` command to generate the static site.
