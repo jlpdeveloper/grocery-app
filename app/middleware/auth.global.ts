@@ -1,6 +1,5 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   const user = useSupabaseUser()
-  const client = useSupabaseClient()
 
   // On server-side, if we don't have a user, we might want to wait or skip
   // to avoid premature redirects since the client might have the session in LocalStorage
