@@ -27,6 +27,8 @@ const { data: listItems } = await useAsyncData('shopping-list', async () => {
     `)
   if (error) throw error
   return data
+}, {
+  watch: [user]
 })
 
 const groupedShoppingList = computed(() => {
@@ -53,12 +55,15 @@ const groupedShoppingList = computed(() => {
 
 // Fetch recurring items
 const { data: recurringItems } = await useAsyncData('recurring-items', async () => {
+  if (!user.value) return []
   const { data, error } = await supabase
     .from('recurring_items')
     .select('*')
-    .eq('created_by', user.value?.id)
+    .eq('created_by', user.value.sub)
   if (error) throw error
   return data
+}, {
+  watch: [user]
 })
 </script>
 
