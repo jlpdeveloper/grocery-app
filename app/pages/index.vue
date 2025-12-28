@@ -22,6 +22,19 @@ const quantity = ref(1)
 const isSubmitting = ref(false)
 const checkedItems = ref<Set<number>>(new Set())
 
+// Edit Modal State
+const showEditModal = ref(false)
+const editingItem = ref<{ id: number, name: string } | null>(null)
+const editName = ref('')
+const isUpdating = ref(false)
+
+// Delete Modal State
+const showDeleteModal = ref(false)
+const deletingItem = ref<{ id: number, name: string } | null>(null)
+const isDeleting = ref(false)
+
+const toast = useToast()
+
 const quantityOptions = Array.from({ length: 10 }, (_, i) => ({
   label: (i + 1).toString(),
   value: i + 1
@@ -61,6 +74,12 @@ async function addItem() {
 
     if (listError) throw listError
 
+    toast.add({
+      title: 'Success',
+      description: `Added ${newItemName.value} to list`,
+      color: 'success'
+    })
+
     // Reset form
     newItemName.value = ''
     isRecurring.value = false
@@ -70,6 +89,12 @@ async function addItem() {
     // Refresh data
     await refreshNuxtData(['shopping-list', 'recurring-items'])
   } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to add item',
+      color: 'error'
+    })
     console.error('Error adding item:', error)
   } finally {
     isSubmitting.value = false
@@ -166,8 +191,20 @@ async function addSuggestedItem(item: { id: number, name: string }) {
 
     if (error) throw error
 
+    toast.add({
+      title: 'Success',
+      description: `Added ${item.name} to list`,
+      color: 'success'
+    })
+
     await refreshNuxtData('shopping-list')
   } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to add item',
+      color: 'error'
+    })
     console.error('Error adding suggested item:', error)
   }
 }
@@ -227,6 +264,70 @@ async function markAsBought() {
     await refreshNuxtData(['shopping-list', 'recurring-items'])
   } catch (error) {
     console.error('Error marking items as bought:', error)
+  }
+}
+
+async function handleUpdateName() {
+  if (!editingItem.value || !editName.value) return
+
+  isUpdating.value = true
+  try {
+    const { error } = await supabase
+      .from('recurring_items')
+      .update({ name: editName.value })
+      .eq('id', editingItem.value.id)
+
+    if (error) throw error
+
+    toast.add({
+      title: 'Success',
+      description: 'Item updated successfully',
+      color: 'success'
+    })
+
+    await refreshNuxtData('recurring-items')
+    showEditModal.value = false
+  } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to update item',
+      color: 'error'
+    })
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+async function handleDeleteRecurringItem() {
+  if (!deletingItem.value) return
+
+  isDeleting.value = true
+  try {
+    const { error } = await supabase
+      .from('recurring_items')
+      .delete()
+      .eq('id', deletingItem.value.id)
+
+    if (error) throw error
+
+    toast.add({
+      title: 'Success',
+      description: 'Item deleted successfully',
+      color: 'success'
+    })
+
+    await refreshNuxtData('recurring-items')
+    showDeleteModal.value = false
+  } catch (error) {
+    const err = error as { message?: string }
+    toast.add({
+      title: 'Error',
+      description: err.message || 'Failed to delete item',
+      color: 'error'
+    })
+  } finally {
+    isDeleting.value = false
   }
 }
 
@@ -382,9 +483,6 @@ function formatDate(dateString: string) {
             <h2 class="text-lg font-semibold">
               My Recurring Items
             </h2>
-            <UButton icon="i-lucide-plus" size="sm">
-              Add Item
-            </UButton>
           </div>
 
           <UCard :ui="{ body: 'p-0' }">
@@ -392,13 +490,36 @@ function formatDate(dateString: string) {
               <li v-for="recItem in myRecurringItems" :key="recItem.id" class="p-4">
                 <div class="flex items-center justify-between mb-1">
                   <span class="font-medium">{{ recItem.name }}</span>
-                  <UButton
-                    icon="i-lucide-shopping-cart"
-                    size="sm"
-                    variant="soft"
-                    label="Add to List"
-                    @click="addSuggestedItem(recItem)"
-                  />
+                  <div class="flex gap-2">
+                    <UButton
+                      icon="i-lucide-pencil"
+                      size="sm"
+                      variant="ghost"
+                      color="neutral"
+                      @click="() => {
+                        editingItem = recItem
+                        editName = recItem.name
+                        showEditModal = true
+                      }"
+                    />
+                    <UButton
+                      icon="i-lucide-trash-2"
+                      size="sm"
+                      variant="ghost"
+                      color="error"
+                      @click="() => {
+                        deletingItem = recItem
+                        showDeleteModal = true
+                      }"
+                    />
+                    <UButton
+                      icon="i-lucide-shopping-cart"
+                      size="sm"
+                      variant="soft"
+                      label="Add to List"
+                      @click="addSuggestedItem(recItem)"
+                    />
+                  </div>
                 </div>
                 <div class="text-xs text-gray-500 flex gap-4">
                   <span>Every {{ recItem.frequency }} {{ recItem.frequency_type }}</span>
@@ -410,5 +531,41 @@ function formatDate(dateString: string) {
         </div>
       </template>
     </UTabs>
+
+    <!-- Edit Modal -->
+    <UModal v-model="showEditModal" title="Edit Recurring Item">
+      <template #content>
+        <div class="p-4 space-y-4">
+          <UFormField label="Item Name">
+            <UInput v-model="editName" placeholder="e.g. Milk" class="w-full" />
+          </UFormField>
+          <div class="flex justify-end gap-3">
+            <UButton variant="ghost" color="neutral" @click="showEditModal = false">
+              Cancel
+            </UButton>
+            <UButton :loading="isUpdating" :disabled="!editName" @click="handleUpdateName">
+              Save
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete Modal -->
+    <UModal v-model="showDeleteModal" title="Delete Recurring Item">
+      <template #content>
+        <div class="p-4 space-y-4">
+          <p>Are you sure you want to delete "{{ deletingItem?.name }}"? This action cannot be undone.</p>
+          <div class="flex justify-end gap-3">
+            <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">
+              Cancel
+            </UButton>
+            <UButton color="error" :loading="isDeleting" @click="handleDeleteRecurringItem">
+              Delete
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
