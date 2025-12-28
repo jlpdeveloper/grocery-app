@@ -11,6 +11,7 @@ Create a mobile-friendly family grocery application using Nuxt 3/4, Nuxt UI, and
 
 ## Core Features
 - **Authentication:** Email/Password and Magic Link support via Supabase.
+    - _Note: The user's unique identifier is stored in the `sub` property of the user object (e.g., `user.value.sub`), not `id`._
 - **Shared Shopping List:** 
     - Full list view showing items from all users.
     - Grouped/Headered by user's display name.
