@@ -2,7 +2,8 @@
 export default defineNuxtConfig({
   modules: [
     '@nuxt/eslint',
-    '@nuxt/ui'
+    '@nuxt/ui',
+    '@nuxtjs/supabase'
   ],
 
   devtools: {
@@ -12,7 +13,16 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   routeRules: {
-    '/': { prerender: true }
+    '/': { ssr: false }
+  },
+
+  supabase: {
+    redirect: false,
+    cookieOptions: {
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: 'lax',
+      secure: false // Set to false for development compatibility, or use environment variable
+    }
   },
 
   compatibilityDate: '2025-01-15',
