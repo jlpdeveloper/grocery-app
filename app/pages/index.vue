@@ -178,6 +178,17 @@ const suggestedItems = computed(() => {
 async function addSuggestedItem(item: { id: number, name: string }) {
   if (!user.value) return
 
+  // Check if item is already in the list to prevent duplicates
+  const isInList = listItems.value?.some(li => li.recurring_item_id === item.id)
+  if (isInList) {
+    toast.add({
+      title: 'Info',
+      description: `${item.name} is already in your list`,
+      color: 'info'
+    })
+    return
+  }
+
   try {
     const { error } = await supabase
       .from('list_items')
@@ -541,7 +552,8 @@ function formatDate(dateString: string) {
                       icon="i-lucide-shopping-cart"
                       size="sm"
                       variant="soft"
-                      label="Add to List"
+                      :label="listItems?.some(li => li.recurring_item_id === recItem.id) ? 'In List' : 'Add to List'"
+                      :disabled="listItems?.some(li => li.recurring_item_id === recItem.id)"
                       @click="addSuggestedItem(recItem)"
                     />
                   </div>
