@@ -13,28 +13,53 @@ const tabs = [
   { label: 'Recurring Items', icon: 'i-lucide-refresh-cw', value: 'recurring' }
 ]
 
-const shoppingList = [
-  { id: 1, name: 'Milk', user: 'John', quantity: 2 },
-  { id: 2, name: 'Bread', user: 'Jane', quantity: 1 },
-  { id: 3, name: 'Eggs', user: 'John', quantity: 12 },
-  { id: 4, name: 'Apples', user: 'Jane', quantity: 6 }
-]
+const activeTab = ref('shopping-list')
+
+// Fetch shopping list items with user profiles
+const { data: listItems } = await useAsyncData('shopping-list', async () => {
+  const { data, error } = await supabase
+    .from('list_items')
+    .select(`
+      *,
+      user_profile!user_id (
+        name
+      )
+    `)
+  if (error) throw error
+  return data
+})
 
 const groupedShoppingList = computed(() => {
-  const groups: Record<string, typeof shoppingList> = {}
-  shoppingList.forEach((item) => {
-    if (!groups[item.user]) {
-      groups[item.user] = []
+  if (!listItems.value) return {}
+
+  const groups: Record<string, typeof listItems.value> = {}
+
+  // Sort by user name first as requested
+  const sortedItems = [...listItems.value].sort((a, b) => {
+    const nameA = a.user_profile?.name || ''
+    const nameB = b.user_profile?.name || ''
+    return nameA.localeCompare(nameB)
+  })
+
+  sortedItems.forEach((item) => {
+    const userName = item.user_profile?.name || 'Unknown'
+    if (!groups[userName]) {
+      groups[userName] = []
     }
-    groups[item.user].push(item)
+    groups[userName].push(item)
   })
   return groups
 })
 
-const recurringItems = [
-  { id: 1, name: 'Coffee', frequency: 7, frequencyType: 'days', lastBought: '2025-12-20' },
-  { id: 2, name: 'Paper Towels', frequency: 30, frequencyType: 'days', lastBought: '2025-11-25' }
-]
+// Fetch recurring items
+const { data: recurringItems } = await useAsyncData('recurring-items', async () => {
+  const { data, error } = await supabase
+    .from('recurring_items')
+    .select('*')
+    .eq('created_by', user.value?.id)
+  if (error) throw error
+  return data
+})
 </script>
 
 <template>
@@ -59,7 +84,7 @@ const recurringItems = [
       </UButton>
     </div>
 
-    <UTabs :items="tabs" class="w-full">
+    <UTabs v-model="activeTab" :items="tabs" class="w-full">
       <template #content="{ item }">
         <!-- Shopping List Tab -->
         <div v-if="item.value === 'shopping-list'" class="space-y-6 pt-4">
@@ -117,8 +142,8 @@ const recurringItems = [
                   />
                 </div>
                 <div class="text-xs text-gray-500 flex gap-4">
-                  <span>Every {{ recItem.frequency }} {{ recItem.frequencyType }}</span>
-                  <span>Last: {{ recItem.lastBought }}</span>
+                  <span>Every {{ recItem.frequency }} {{ recItem.frequency_type }}</span>
+                  <span>Last: {{ recItem.last_bought }}</span>
                 </div>
               </li>
             </ul>
