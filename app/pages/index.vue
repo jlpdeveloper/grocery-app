@@ -170,6 +170,12 @@ async function addSuggestedItem(item: { id: number, name: string }) {
     console.error('Error adding suggested item:', error)
   }
 }
+function formatDate(dateString: string) {
+  // Supabase returns YYYY-MM-DD for date columns.
+  // Appending T00:00:00 ensures it's treated as a local date by new Date()
+  // instead of being parsed as UTC and shifting back a day in some timezones.
+  return new Date(`${dateString}T00:00:00`).toLocaleDateString()
+}
 </script>
 
 <template>
@@ -213,6 +219,12 @@ async function addSuggestedItem(item: { id: number, name: string }) {
                 @click="addSuggestedItem(suggested)"
               >
                 {{ suggested.name }}
+                <span v-if="suggested.last_bought" class="text-[10px] opacity-60 ml-1">
+                  ({{ formatDate(suggested.last_bought) }})
+                </span>
+                <span v-else class="text-[10px] opacity-60 ml-1">
+                  (Never)
+                </span>
               </UButton>
             </div>
           </div>
@@ -309,7 +321,7 @@ async function addSuggestedItem(item: { id: number, name: string }) {
                 </div>
                 <div class="text-xs text-gray-500 flex gap-4">
                   <span>Every {{ recItem.frequency }} {{ recItem.frequency_type }}</span>
-                  <span>Last: {{ recItem.last_bought }}</span>
+                  <span>Last: {{ recItem.last_bought ? formatDate(recItem.last_bought) : 'Never' }}</span>
                 </div>
               </li>
             </ul>
