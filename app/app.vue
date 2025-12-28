@@ -30,7 +30,6 @@ useSeoMeta({
     <UHeader>
       <template #left>
         <NuxtLink to="/" class="flex items-center gap-2">
-          <AppLogo class="w-auto h-6 shrink-0" />
           <span class="font-bold text-lg">Family Grocery</span>
         </NuxtLink>
       </template>
