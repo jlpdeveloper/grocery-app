@@ -20,6 +20,7 @@ const isRecurring = ref(false)
 const frequency = ref(1)
 const quantity = ref(1)
 const isSubmitting = ref(false)
+const checkedItems = ref<Set<number>>(new Set())
 
 const quantityOptions = Array.from({ length: 10 }, (_, i) => ({
   label: (i + 1).toString(),
@@ -170,6 +171,65 @@ async function addSuggestedItem(item: { id: number, name: string }) {
     console.error('Error adding suggested item:', error)
   }
 }
+
+async function deleteItem(id: number) {
+  try {
+    const { error } = await supabase
+      .from('list_items')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    checkedItems.value.delete(id)
+    checkedItems.value = new Set(checkedItems.value)
+    await refreshNuxtData('shopping-list')
+  } catch (error) {
+    console.error('Error deleting item:', error)
+  }
+}
+
+async function markAsBought() {
+  if (!listItems.value) return
+
+  const itemsToProcess = checkedItems.value.size > 0
+    ? listItems.value.filter(item => checkedItems.value.has(item.id))
+    : listItems.value
+
+  if (itemsToProcess.length === 0) return
+
+  try {
+    // 1. Update recurring items' last_bought field
+    const recurringItemsToUpdate = itemsToProcess
+      .filter(item => item.recurring_item_id)
+      .map(item => item.recurring_item_id)
+
+    if (recurringItemsToUpdate.length > 0) {
+      const today = new Date().toISOString().split('T')[0]
+      const { error: updateError } = await supabase
+        .from('recurring_items')
+        .update({ last_bought: today })
+        .in('id', recurringItemsToUpdate)
+
+      if (updateError) throw updateError
+    }
+
+    // 2. Delete items from list_items
+    const idsToDelete = itemsToProcess.map(item => item.id)
+    const { error: deleteError } = await supabase
+      .from('list_items')
+      .delete()
+      .in('id', idsToDelete)
+
+    if (deleteError) throw deleteError
+
+    // 3. Cleanup and Refresh
+    checkedItems.value.clear()
+    await refreshNuxtData(['shopping-list', 'recurring-items'])
+  } catch (error) {
+    console.error('Error marking items as bought:', error)
+  }
+}
+
 function formatDate(dateString: string) {
   // Supabase returns YYYY-MM-DD for date columns.
   // Appending T00:00:00 ensures it's treated as a local date by new Date()
@@ -273,8 +333,22 @@ function formatDate(dateString: string) {
               <ul class="divide-y divide-gray-200 dark:divide-gray-800">
                 <li v-for="listItem in items" :key="listItem.id" class="p-3 flex items-center justify-between">
                   <div class="flex items-center gap-3">
-                    <UCheckbox />
-                    <span>{{ listItem.name }}</span>
+                    <UCheckbox
+                      :model-value="checkedItems.has(listItem.id)"
+                      @update:model-value="(val) => {
+                        if (val) {
+                          checkedItems.add(listItem.id)
+                        }
+                        else {
+                          checkedItems.delete(listItem.id)
+                        }
+                        // Trigger reactivity for the Set
+                        checkedItems = new Set(checkedItems)
+                      }"
+                    />
+                    <span :class="{ 'line-through text-gray-400': checkedItems.has(listItem.id) }">
+                      {{ listItem.name }}
+                    </span>
                     <span class="text-xs text-gray-400">x{{ listItem.quantity }}</span>
                   </div>
                   <UButton
@@ -282,15 +356,19 @@ function formatDate(dateString: string) {
                     variant="ghost"
                     icon="i-lucide-trash-2"
                     size="xs"
+                    @click="deleteItem(listItem.id)"
                   />
                 </li>
               </ul>
             </UCard>
           </div>
 
-          <div class="flex justify-end pt-2">
-            <UButton icon="i-lucide-check-check">
-              Mark all as bought
+          <div v-if="listItems && listItems.length > 0" class="flex justify-end pt-2">
+            <UButton
+              icon="i-lucide-check-check"
+              @click="markAsBought"
+            >
+              {{ checkedItems.size > 0 ? `Mark ${checkedItems.size} items bought` : 'Mark all as bought' }}
             </UButton>
           </div>
         </div>
