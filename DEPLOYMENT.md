@@ -40,3 +40,5 @@ As a Nuxt application, it can be deployed to various platforms:
 I chose to deploy using [Sevalla](https://sevalla.com/) using their static site generation.
 To use this, ensure that your SUPABASE_URL and SUPABASE_KEY environment variables are correctly set.
 Sevalla uses the `npm run generate` command to generate the static site.
+
+After deployment, you will need to update the url for call back in supabase. 
