@@ -2,6 +2,14 @@
 
 A mobile-friendly family grocery application built with Nuxt 4, Nuxt UI, and Supabase. This app allows family members to maintain individual recurring grocery lists and a shared shopping list.
 
+## Introduction
+This project was created when I identified a need for a simple grocery management app that 
+would allow my wife and me to manage our grocery lists together instead of collating notes and texts together.
+
+This app is offered for anyone who suffers this same problem and wishes to use it.
+
+_Note:_ This is not a production worthy app. It lacks logging, error handling, data retention, and many other key features before it should be offered to the public.
+
 ## 🚀 Features
 
 - **Collaborative Shopping List**: View items from all users, grouped by display name.
