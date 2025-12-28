@@ -11,6 +11,7 @@ Create a mobile-friendly family grocery application using Nuxt 3/4, Nuxt UI, and
 
 ## Core Features
 - **Authentication:** Email/Password and Magic Link support via Supabase.
+    - _Note: The user's unique identifier is stored in the `sub` property of the user object (e.g., `user.value.sub`), not `id`._
 - **Shared Shopping List:** 
     - Full list view showing items from all users.
     - Grouped/Headered by user's display name.
@@ -54,5 +55,15 @@ create table public.list_items (
   constraint list_items_pkey primary key (id),
   constraint list_items_recurring_item_id_fkey foreign KEY (recurring_item_id) references recurring_items (id),
   constraint list_items_user_id_fkey foreign KEY (user_id) references auth.users (id)
+) TABLESPACE pg_default;
+```
+
+### User Profile (for display name)
+```sql
+create table public.user_profile (
+  user_id uuid not null,
+  name text not null,
+  constraint user_profile_pkey primary key (user_id),
+  constraint user_profile_user_id_fkey foreign KEY (user_id) references auth.users (id) on delete CASCADE
 ) TABLESPACE pg_default;
 ```
