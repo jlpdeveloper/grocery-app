@@ -15,6 +15,59 @@ const tabs = [
 
 const activeTab = ref('shopping-list')
 
+const newItemName = ref('')
+const isRecurring = ref(false)
+const frequency = ref(1)
+const isSubmitting = ref(false)
+
+async function addItem() {
+  if (!newItemName.value || !user.value) return
+
+  isSubmitting.value = true
+  try {
+    let recurringItemId = null
+
+    if (isRecurring.value) {
+      const { data: recData, error: recError } = await supabase
+        .from('recurring_items')
+        .insert({
+          name: newItemName.value,
+          created_by: user.value.sub,
+          frequency: frequency.value,
+          frequency_type: 'weeks'
+        })
+        .select()
+        .single()
+
+      if (recError) throw recError
+      recurringItemId = recData.id
+    }
+
+    const { error: listError } = await supabase
+      .from('list_items')
+      .insert({
+        name: newItemName.value,
+        user_id: user.value.sub,
+        recurring_item_id: recurringItemId,
+        quantity: 1
+      })
+
+    if (listError) throw listError
+
+    // Reset form
+    newItemName.value = ''
+    isRecurring.value = false
+    frequency.value = 1
+
+    // Refresh data
+    await refreshNuxtData(['shopping-list', 'recurring-items'])
+  } catch (error) {
+    console.error('Error adding item:', error)
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
 // Fetch shopping list items with user profiles
 const { data: listItems } = await useAsyncData('shopping-list', async () => {
   const { data, error } = await supabase
@@ -93,6 +146,34 @@ const { data: recurringItems } = await useAsyncData('recurring-items', async () 
       <template #content="{ item }">
         <!-- Shopping List Tab -->
         <div v-if="item.value === 'shopping-list'" class="space-y-6 pt-4">
+          <!-- Add Item Form -->
+          <UCard>
+            <form class="space-y-4" @submit.prevent="addItem">
+              <div class="flex flex-col sm:flex-row gap-4 items-end">
+                <UFormField label="Item Name" class="flex-1 w-full">
+                  <UInput v-model="newItemName" placeholder="e.g. Milk" class="w-full" />
+                </UFormField>
+
+                <div class="flex items-center gap-4 h-10">
+                  <UCheckbox v-model="isRecurring" label="Recurring?" />
+                </div>
+
+                <UFormField v-if="isRecurring" label="Every (weeks)" class="w-24">
+                  <UInput v-model="frequency" type="number" min="1" />
+                </UFormField>
+
+                <UButton
+                  type="submit"
+                  icon="i-lucide-plus"
+                  :loading="isSubmitting"
+                  :disabled="!newItemName"
+                >
+                  Add
+                </UButton>
+              </div>
+            </form>
+          </UCard>
+
           <div v-for="(items, userName) in groupedShoppingList" :key="userName" class="space-y-2">
             <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider px-2">
               {{ userName }}'s List
