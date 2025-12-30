@@ -11,6 +11,14 @@ const loading = ref(false)
 const email = ref('')
 const password = ref('')
 
+const user = useSupabaseUser()
+
+watch(user, (newUser) => {
+  if (newUser) {
+    router.push('/')
+  }
+}, { immediate: true })
+
 const tabs = [
   { label: 'Password', icon: 'i-lucide-lock', value: 'password' },
   { label: 'Magic Link', icon: 'i-lucide-wand-2', value: 'magic-link' }
