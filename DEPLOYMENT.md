@@ -35,6 +35,20 @@ As a Nuxt application, it can be deployed to various platforms:
 - Verify that Row Level Security (RLS) policies are active.
 - Ensure the `auth.users` trigger (if any) or initial user profile creation is functioning correctly.
 
+### Adding Users
+Follow these steps to manually add users to the application:
+1. **Create User in Supabase**: Go to the **Authentication** section in your Supabase dashboard and create a new user with an email and password.
+2. **Copy User ID**: Once created, copy the **User ID** (GUID) for the new user from the user list.
+3. **Add User Profile Record**: Go to the **SQL Editor** or **Table Editor** and add a record to the `user_profile` table:
+   - `user_id`: Paste the GUID you copied.
+   - `name`: Enter the user's name.
+
+Example SQL for adding a profile:
+```sql
+insert into public.user_profile (user_id, name)
+values ('USER_GUID_HERE', 'User Name');
+```
+
 
 ## Sevalla Deployment
 I chose to deploy using [Sevalla](https://sevalla.com/) using their static site generation.
