@@ -643,102 +643,155 @@ function formatDate(dateString: string) {
         </div>
 
         <!-- Recurring Items Tab -->
-        <div v-else-if="item.value === 'recurring'" class="space-y-4 pt-4">
-          <div class="flex justify-between items-center px-2">
-            <h2 class="text-lg font-semibold">
-              My Recurring Items
-            </h2>
+        <div v-else-if="item.value === 'recurring'" class="space-y-6 pt-4">
+          <!-- List Selection -->
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <USelect
+                v-model="selectedListId"
+                :items="shoppingLists || []"
+                label-key="name"
+                value-key="id"
+                placeholder="Select a list"
+                class="flex-1"
+              />
+              <UPopover>
+                <UButton icon="i-lucide-plus" variant="soft" color="neutral" />
+                <template #content>
+                  <div class="p-4 space-y-3 w-64">
+                    <p class="text-sm font-medium">
+                      Create New List
+                    </p>
+                    <UInput v-model="newListName" placeholder="List name" @keyup.enter="createList" />
+                    <UButton
+                      class="w-full"
+                      :loading="isCreatingList"
+                      :disabled="!newListName"
+                      @click="createList"
+                    >
+                      Create
+                    </UButton>
+                  </div>
+                </template>
+              </UPopover>
+              <UButton
+                v-if="selectedListId"
+                icon="i-lucide-trash-2"
+                variant="soft"
+                color="error"
+                :loading="isDeletingList"
+                @click="deleteList"
+              />
+            </div>
+
+            <p v-if="itemsNotShownSummary" class="text-xs text-gray-500 px-1 italic">
+              {{ itemsNotShownSummary }}
+            </p>
           </div>
 
-          <UCard :ui="{ body: 'p-0' }">
-            <ul class="divide-y divide-gray-200 dark:divide-gray-800">
-              <li v-for="recItem in myRecurringItems" :key="recItem.id" class="p-4">
-                <div class="flex items-center justify-between mb-1">
-                  <div v-if="editingId === recItem.id" class="flex-1 flex items-center gap-2 mr-4">
-                    <UInput
-                      v-model="editName"
-                      class="flex-1"
-                      size="sm"
-                      @keyup.enter="handleUpdateName"
-                      @keyup.esc="editingId = null"
-                    />
-                    <div class="flex gap-1">
-                      <UButton
-                        icon="i-lucide-check"
-                        size="sm"
-                        color="success"
-                        variant="ghost"
-                        :loading="isUpdating"
-                        @click="handleUpdateName"
-                      />
-                      <UButton
-                        icon="i-lucide-x"
-                        size="sm"
-                        color="error"
-                        variant="ghost"
-                        @click="editingId = null"
-                      />
-                    </div>
-                  </div>
-                  <span v-else class="font-medium">{{ recItem.name }}</span>
+          <div v-if="!selectedListId" class="text-center py-10 text-gray-500">
+            <p>
+              Please select or create a shopping list to get started.
+            </p>
+          </div>
 
-                  <div v-if="editingId !== recItem.id" class="flex gap-2">
-                    <div v-if="deletingId === recItem.id" class="flex items-center gap-1 bg-error-50 dark:bg-error-950/30 px-2 py-1 rounded-md">
-                      <span class="text-xs font-medium text-error-600 dark:text-error-400 mr-1">Delete?</span>
-                      <UButton
-                        icon="i-lucide-check"
-                        size="xs"
-                        color="error"
-                        variant="ghost"
-                        :loading="isDeleting"
-                        @click="handleDeleteRecurringItem(recItem.id)"
+          <template v-else>
+            <div class="flex justify-between items-center px-2">
+              <h2 class="text-lg font-semibold">
+                My Recurring Items
+              </h2>
+            </div>
+
+            <UCard :ui="{ body: 'p-0' }">
+              <ul class="divide-y divide-gray-200 dark:divide-gray-800">
+                <li v-for="recItem in myRecurringItems" :key="recItem.id" class="p-4">
+                  <div class="flex items-center justify-between mb-1">
+                    <div v-if="editingId === recItem.id" class="flex-1 flex items-center gap-2 mr-4">
+                      <UInput
+                        v-model="editName"
+                        class="flex-1"
+                        size="sm"
+                        @keyup.enter="handleUpdateName"
+                        @keyup.esc="editingId = null"
                       />
-                      <UButton
-                        icon="i-lucide-x"
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        @click="deletingId = null"
-                      />
+                      <div class="flex gap-1">
+                        <UButton
+                          icon="i-lucide-check"
+                          size="sm"
+                          color="success"
+                          variant="ghost"
+                          :loading="isUpdating"
+                          @click="handleUpdateName"
+                        />
+                        <UButton
+                          icon="i-lucide-x"
+                          size="sm"
+                          color="error"
+                          variant="ghost"
+                          @click="editingId = null"
+                        />
+                      </div>
                     </div>
-                    <template v-else>
-                      <UButton
-                        icon="i-lucide-pencil"
-                        size="sm"
-                        variant="ghost"
-                        color="neutral"
-                        :disabled="deletingId !== null || editingId !== null"
-                        @click="() => {
-                          editingId = recItem.id
-                          editName = recItem.name
-                        }"
-                      />
-                      <UButton
-                        icon="i-lucide-trash-2"
-                        size="sm"
-                        variant="ghost"
-                        color="error"
-                        :disabled="deletingId !== null || editingId !== null"
-                        @click="deletingId = recItem.id"
-                      />
-                      <UButton
-                        icon="i-lucide-shopping-cart"
-                        size="sm"
-                        variant="soft"
-                        :label="listItems?.some(li => li.recurring_item_id === recItem.id) ? 'In List' : 'Add to List'"
-                        :disabled="listItems?.some(li => li.recurring_item_id === recItem.id) || deletingId !== null || editingId !== null"
-                        @click="addSuggestedItem(recItem)"
-                      />
-                    </template>
+                    <span v-else class="font-medium">{{ recItem.name }}</span>
+
+                    <div v-if="editingId !== recItem.id" class="flex gap-2">
+                      <div v-if="deletingId === recItem.id" class="flex items-center gap-1 bg-error-50 dark:bg-error-950/30 px-2 py-1 rounded-md">
+                        <span class="text-xs font-medium text-error-600 dark:text-error-400 mr-1">Delete?</span>
+                        <UButton
+                          icon="i-lucide-check"
+                          size="xs"
+                          color="error"
+                          variant="ghost"
+                          :loading="isDeleting"
+                          @click="handleDeleteRecurringItem(recItem.id)"
+                        />
+                        <UButton
+                          icon="i-lucide-x"
+                          size="xs"
+                          color="neutral"
+                          variant="ghost"
+                          @click="deletingId = null"
+                        />
+                      </div>
+                      <template v-else>
+                        <UButton
+                          icon="i-lucide-pencil"
+                          size="sm"
+                          variant="ghost"
+                          color="neutral"
+                          :disabled="deletingId !== null || editingId !== null"
+                          @click="() => {
+                            editingId = recItem.id
+                            editName = recItem.name
+                          }"
+                        />
+                        <UButton
+                          icon="i-lucide-trash-2"
+                          size="sm"
+                          variant="ghost"
+                          color="error"
+                          :disabled="deletingId !== null || editingId !== null"
+                          @click="deletingId = recItem.id"
+                        />
+                        <UButton
+                          icon="i-lucide-shopping-cart"
+                          size="sm"
+                          variant="soft"
+                          :label="listItems?.some(li => li.recurring_item_id === recItem.id) ? 'In List' : 'Add to List'"
+                          :disabled="listItems?.some(li => li.recurring_item_id === recItem.id) || deletingId !== null || editingId !== null"
+                          @click="addSuggestedItem(recItem)"
+                        />
+                      </template>
+                    </div>
                   </div>
-                </div>
-                <div class="text-xs text-gray-500 flex gap-4">
-                  <span>Every {{ recItem.frequency }} {{ recItem.frequency_type }}</span>
-                  <span>Last: {{ recItem.last_bought ? formatDate(recItem.last_bought) : 'Never' }}</span>
-                </div>
-              </li>
-            </ul>
-          </UCard>
+                  <div class="text-xs text-gray-500 flex gap-4">
+                    <span>Every {{ recItem.frequency }} {{ recItem.frequency_type }}</span>
+                    <span>Last: {{ recItem.last_bought ? formatDate(recItem.last_bought) : 'Never' }}</span>
+                  </div>
+                </li>
+              </ul>
+            </UCard>
+          </template>
         </div>
       </template>
     </UTabs>
