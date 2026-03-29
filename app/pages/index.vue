@@ -16,6 +16,7 @@ const tabs = [
 const activeTab = ref('shopping-list')
 
 const newItemName = ref('')
+const selectedCategory = ref('Other')
 const isRecurring = ref(false)
 const frequency = ref(1)
 const quantity = ref(1)
@@ -48,6 +49,17 @@ const deletingId = ref<number | null>(null)
 const isDeleting = ref(false)
 
 const toast = useToast()
+
+const categoryOptions = [
+  { label: 'Pharmacy', value: 'Pharmacy' },
+  { label: 'Grocery', value: 'Grocery' },
+  { label: 'Pet', value: 'Pet' },
+  { label: 'Craft', value: 'Craft' },
+  { label: 'Electronics', value: 'Electronics' },
+  { label: 'Clothing', value: 'Clothing' },
+  { label: 'Hardware', value: 'Hardware' },
+  { label: 'No Category', value: 'Other' }
+]
 
 const quantityOptions = Array.from({ length: 10 }, (_, i) => ({
   label: (i + 1).toString(),
@@ -91,7 +103,8 @@ async function addItem() {
           name: newItemName.value,
           created_by: user.value?.sub || null,
           frequency: frequency.value,
-          frequency_type: 'weeks'
+          frequency_type: 'weeks',
+          category: selectedCategory.value
         })
         .select()
         .single()
@@ -107,7 +120,8 @@ async function addItem() {
         user_id: user.value?.sub || null,
         recurring_item_id: recurringItemId,
         quantity: quantity.value,
-        list_id: selectedListId.value
+        list_id: selectedListId.value,
+        category: selectedCategory.value
       })
 
     if (listError) throw listError
@@ -120,6 +134,7 @@ async function addItem() {
 
     // Reset form
     newItemName.value = ''
+    selectedCategory.value = 'Other'
     isRecurring.value = false
     frequency.value = 1
     quantity.value = 1
@@ -193,6 +208,37 @@ const sortedListItems = computed(() => {
   })
 })
 
+const groupedListItems = computed(() => {
+  if (!sortedListItems.value) return {}
+  const groups: Record<string, typeof sortedListItems.value> = {}
+
+  // Sort groups by category name, putting 'Other' last
+  const categoryOrder = categoryOptions.map(opt => opt.value)
+
+  sortedListItems.value.forEach((item) => {
+    const cat = item.category || 'Other'
+    if (!groups[cat]) groups[cat] = []
+    groups[cat].push(item)
+  })
+
+  // Return groups in specific order
+  const orderedGroups: Record<string, typeof sortedListItems.value> = {}
+  categoryOrder.forEach((cat) => {
+    if (groups[cat]) {
+      orderedGroups[cat] = groups[cat]
+    }
+  })
+
+  // Add any categories not in categoryOptions (if any)
+  Object.keys(groups).forEach((cat) => {
+    if (!orderedGroups[cat]) {
+      orderedGroups[cat] = groups[cat]
+    }
+  })
+
+  return orderedGroups
+})
+
 // Fetch all recurring items (all users have read access for suggestions)
 const { data: allRecurringItems } = await useAsyncData('recurring-items', async () => {
   if (!user.value) return []
@@ -230,7 +276,7 @@ const suggestedItems = computed(() => {
   })
 })
 
-async function addSuggestedItem(item: { id: number, name: string }) {
+async function addSuggestedItem(item: { id: number, name: string, category?: string }) {
   if (!selectedListId.value) return
 
   // Check if item is already in the list to prevent duplicates
@@ -252,7 +298,8 @@ async function addSuggestedItem(item: { id: number, name: string }) {
         user_id: user.value?.sub || null,
         recurring_item_id: item.id,
         quantity: 1,
-        list_id: selectedListId.value
+        list_id: selectedListId.value,
+        category: item.category || 'Other'
       })
 
     if (error) throw error
@@ -590,7 +637,15 @@ function formatDate(dateString: string) {
                     />
                   </UFormField>
 
-                  <div class="col-span-8 sm:col-span-2 flex items-center h-10 px-1">
+                  <UFormField label="Category" class="col-span-8 sm:col-span-4">
+                    <USelect
+                      v-model="selectedCategory"
+                      :items="categoryOptions"
+                      class="w-full"
+                    />
+                  </UFormField>
+
+                  <div class="col-span-6 sm:col-span-2 flex items-center h-10 px-1">
                     <UCheckbox v-model="isRecurring" label="Recurring?" />
                   </div>
 
@@ -598,7 +653,7 @@ function formatDate(dateString: string) {
                     <UInput v-model="frequency" type="number" min="1" />
                   </UFormField>
 
-                  <div :class="[isRecurring ? 'col-span-6 sm:col-span-2' : 'col-span-12 sm:col-span-4', 'flex justify-end']">
+                  <div :class="[isRecurring ? 'col-span-6 sm:col-span-2' : 'col-span-6 sm:col-span-2', 'flex justify-end']">
                     <UButton
                       type="submit"
                       icon="i-lucide-plus"
@@ -613,51 +668,58 @@ function formatDate(dateString: string) {
               </form>
             </UCard>
 
-            <UCard v-if="sortedListItems.length > 0" :ui="{ body: 'p-0' }">
-              <ul class="divide-y divide-gray-200 dark:divide-gray-800">
-                <li v-for="listItem in sortedListItems" :key="listItem.id" class="p-3 flex items-center justify-between">
-                  <div class="flex items-center gap-3">
-                    <UCheckbox
-                      :model-value="checkedItems.has(listItem.id)"
-                      @update:model-value="(val) => {
-                        if (val) {
-                          checkedItems.add(listItem.id)
-                        }
-                        else {
-                          checkedItems.delete(listItem.id)
-                        }
-                        // Trigger reactivity for the Set
-                        checkedItems = new Set(checkedItems)
-                      }"
-                    />
-                    <div class="flex flex-col">
-                      <div class="flex items-center gap-2">
-                        <span :class="{ 'line-through text-gray-400': checkedItems.has(listItem.id) }">
-                          {{ listItem.name }}
-                        </span>
-                        <span class="text-xs text-gray-400">x{{ listItem.quantity }}</span>
+            <div v-if="listItems && listItems.length > 0" class="space-y-4">
+              <div v-for="(items, category) in groupedListItems" :key="category" class="space-y-2">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 pt-2">
+                  {{ categoryOptions.find(opt => opt.value === category)?.label || category }}
+                </h3>
+                <UCard :ui="{ body: 'p-0' }">
+                  <ul class="divide-y divide-gray-200 dark:divide-gray-800">
+                    <li v-for="listItem in items" :key="listItem.id" class="p-3 flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <UCheckbox
+                          :model-value="checkedItems.has(listItem.id)"
+                          @update:model-value="(val) => {
+                            if (val) {
+                              checkedItems.add(listItem.id)
+                            }
+                            else {
+                              checkedItems.delete(listItem.id)
+                            }
+                            // Trigger reactivity for the Set
+                            checkedItems = new Set(checkedItems)
+                          }"
+                        />
+                        <div class="flex flex-col">
+                          <div class="flex items-center gap-2">
+                            <span :class="{ 'line-through text-gray-400': checkedItems.has(listItem.id) }">
+                              {{ listItem.name }}
+                            </span>
+                            <span class="text-xs text-gray-400">x{{ listItem.quantity }}</span>
+                          </div>
+                          <span class="text-[10px] text-gray-500">Added by: {{ listItem.user_profile?.name || 'Anonymous' }}</span>
+                        </div>
                       </div>
-                      <span class="text-[10px] text-gray-500">Added by: {{ listItem.user_profile?.name || 'Anonymous' }}</span>
-                    </div>
-                  </div>
-                  <UButton
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    size="xs"
-                    @click="deleteItem(listItem.id)"
-                  />
-                </li>
-              </ul>
-            </UCard>
+                      <UButton
+                        color="error"
+                        variant="ghost"
+                        icon="i-lucide-trash-2"
+                        size="xs"
+                        @click="deleteItem(listItem.id)"
+                      />
+                    </li>
+                  </ul>
+                </UCard>
+              </div>
 
-            <div v-if="listItems && listItems.length > 0" class="flex justify-end pt-2">
-              <UButton
-                icon="i-lucide-check-check"
-                @click="markAsBought"
-              >
-                {{ checkedItems.size > 0 ? `Mark ${checkedItems.size} items bought` : 'Mark all as bought' }}
-              </UButton>
+              <div class="flex justify-end pt-2">
+                <UButton
+                  icon="i-lucide-check-check"
+                  @click="markAsBought"
+                >
+                  {{ checkedItems.size > 0 ? `Mark ${checkedItems.size} items bought` : 'Mark all as bought' }}
+                </UButton>
+              </div>
             </div>
           </template>
         </div>
@@ -806,6 +868,7 @@ function formatDate(dateString: string) {
                   </div>
                   <div class="text-xs text-gray-500 flex gap-4">
                     <span>Every {{ recItem.frequency }} {{ recItem.frequency_type }}</span>
+                    <span>Category: {{ categoryOptions.find(opt => opt.value === recItem.category)?.label || recItem.category || 'No Category' }}</span>
                     <span>Last: {{ recItem.last_bought ? formatDate(recItem.last_bought) : 'Never' }}</span>
                   </div>
                 </li>
