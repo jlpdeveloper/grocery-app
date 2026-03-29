@@ -28,6 +28,16 @@ Run `3-list_items.sql` third.
 - **Purpose:** Creates the `public.list_items` table with foreign key references to `recurring_items`, `auth.users`, and `user_profile`.
 
 ### 4. RLS Policies
-Run `4-rls_policies.sql` last.
+Run `4-rls_policies.sql` fourth.
 - **File:** `sql/4-rls_policies.sql`
 - **Purpose:** Sets up Row Level Security (RLS) policies for all created tables.
+
+### 5. Shopping Lists
+Run `5-shopping_lists.sql` fifth.
+- **File:** `sql/5-shopping_lists.sql`
+- **Purpose:** Creates the `public.shopping_lists` table and adds `list_id` to `list_items`.
+
+### 6. Categories
+Run `6-add_categories.sql` sixth.
+- **File:** `sql/6-add_categories.sql`
+- **Purpose:** Creates the `categories` enum and adds `category` columns to `list_items` and `recurring_items`.

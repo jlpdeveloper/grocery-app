@@ -12,8 +12,7 @@ Before deploying the frontend, you must configure your Supabase instance:
     3. `3-list_items.sql`
     4. `4-rls_policies.sql`
     5. `5-shopping_lists.sql`
-    6. `6-make_user_id_optional.sql`
-    7. `7-add_categories.sql`
+    6. `6-add_categories.sql`
   Refer to `sql/INSTRUCTIONS.md` for detailed database setup instructions.
 - **Authentication**: Enable Email/Password or Magic Link providers in the Supabase Auth settings.
 

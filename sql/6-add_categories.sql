@@ -19,6 +19,14 @@ end $$;
 alter table public.list_items
   add column if not exists category public.categories not null default 'Other';
 
+-- Ensure default is set for existing column
+alter table public.list_items
+  alter column category set default 'Other';
+
 -- Add category column to recurring_items
 alter table public.recurring_items
   add column if not exists category public.categories not null default 'Other';
+
+-- Ensure default is set for existing column
+alter table public.recurring_items
+  alter column category set default 'Other';
