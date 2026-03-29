@@ -23,7 +23,17 @@ const isSubmitting = ref(false)
 const checkedItems = ref<Set<number>>(new Set())
 
 // List Management State
-const selectedListId = ref<number | null>(null)
+const selectedListIdCookie = useCookie<number | null>('selected-list-id', {
+  maxAge: 60 * 60 * 24 * 365, // 1 year
+  path: '/'
+})
+const selectedListId = ref<number | null>(selectedListIdCookie.value)
+
+// Watch for selection changes to update cookie
+watch(selectedListId, (newId) => {
+  selectedListIdCookie.value = newId
+})
+
 const isCreatingList = ref(false)
 const newListName = ref('')
 const isDeletingList = ref(false)
@@ -137,9 +147,19 @@ const { data: shoppingLists, refresh: refreshLists } = await useAsyncData('shopp
     .order('created_at', { ascending: true })
   if (error) throw error
 
-  if (data && data.length > 0 && !selectedListId.value) {
-    const defaultList = data.find(l => l.is_default) || data[0]
-    selectedListId.value = defaultList.id
+  if (data && data.length > 0) {
+    if (selectedListId.value) {
+      // Check if current selection still exists
+      const exists = data.some(l => l.id === selectedListId.value)
+      if (!exists) {
+        const defaultList = data.find(l => l.is_default) || data[0]
+        selectedListId.value = defaultList.id
+      }
+    } else {
+      // No selection, check cookie (already handled by ref initialization) then default list
+      const defaultList = data.find(l => l.is_default) || data[0]
+      selectedListId.value = defaultList.id
+    }
   }
   return data
 }, {
