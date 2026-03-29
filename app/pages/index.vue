@@ -51,14 +51,14 @@ const isDeleting = ref(false)
 const toast = useToast()
 
 const categoryOptions = [
-  { label: 'No Category', value: 'Other' },
   { label: 'Pharmacy', value: 'Pharmacy' },
   { label: 'Grocery', value: 'Grocery' },
   { label: 'Pet', value: 'Pet' },
   { label: 'Craft', value: 'Craft' },
   { label: 'Electronics', value: 'Electronics' },
   { label: 'Clothing', value: 'Clothing' },
-  { label: 'Hardware', value: 'Hardware' }
+  { label: 'Hardware', value: 'Hardware' },
+  { label: 'No Category', value: 'Other' }
 ]
 
 const quantityOptions = Array.from({ length: 10 }, (_, i) => ({
