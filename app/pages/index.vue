@@ -44,6 +44,29 @@ const quantityOptions = Array.from({ length: 10 }, (_, i) => ({
   value: i + 1
 }))
 
+// Fetch all list items (to calculate total count across all lists)
+const { data: allListItems } = await useAsyncData('all-list-items', async () => {
+  const { data, error } = await supabase
+    .from('list_items')
+    .select('id, list_id')
+  if (error) throw error
+  return data
+}, {
+  watch: [user]
+})
+
+const itemsNotShownSummary = computed(() => {
+  if (!allListItems.value || !shoppingLists.value) return null
+
+  const otherItems = allListItems.value.filter(item => item.list_id !== selectedListId.value)
+  if (otherItems.length === 0) return null
+
+  const otherListIds = new Set(otherItems.map(item => item.list_id))
+  const listCount = otherListIds.size
+
+  return `${otherItems.length} item${otherItems.length > 1 ? 's' : ''} in ${listCount} list${listCount > 1 ? 's' : ''} not shown`
+})
+
 async function addItem() {
   if (!newItemName.value || !selectedListId.value) return
 
@@ -92,7 +115,7 @@ async function addItem() {
     quantity.value = 1
 
     // Refresh data
-    await refreshNuxtData(['shopping-list', 'recurring-items'])
+    await refreshNuxtData(['shopping-list', 'recurring-items', 'all-list-items'])
   } catch (error) {
     const err = error as { message?: string }
     toast.add({
@@ -220,7 +243,8 @@ async function addSuggestedItem(item: { id: number, name: string }) {
       color: 'success'
     })
 
-    await refreshNuxtData('shopping-list')
+    // Refresh data
+    await refreshNuxtData(['shopping-list', 'all-list-items'])
   } catch (error) {
     const err = error as { message?: string }
     toast.add({
@@ -242,7 +266,7 @@ async function deleteItem(id: number) {
     if (error) throw error
     checkedItems.value.delete(id)
     checkedItems.value = new Set(checkedItems.value)
-    await refreshNuxtData('shopping-list')
+    await refreshNuxtData(['shopping-list', 'all-list-items'])
   } catch (error) {
     console.error('Error deleting item:', error)
   }
@@ -284,7 +308,7 @@ async function markAsBought() {
 
     // 3. Cleanup and Refresh
     checkedItems.value.clear()
-    await refreshNuxtData(['shopping-list', 'recurring-items'])
+    await refreshNuxtData(['shopping-list', 'recurring-items', 'all-list-items'])
   } catch (error) {
     console.error('Error marking items as bought:', error)
   }
@@ -454,42 +478,48 @@ function formatDate(dateString: string) {
         <!-- Shopping List Tab -->
         <div v-if="item.value === 'shopping-list'" class="space-y-6 pt-4">
           <!-- List Selection -->
-          <div class="flex items-center gap-2">
-            <USelect
-              v-model="selectedListId"
-              :items="shoppingLists || []"
-              label-key="name"
-              value-key="id"
-              placeholder="Select a list"
-              class="flex-1"
-            />
-            <UPopover>
-              <UButton icon="i-lucide-plus" variant="soft" color="neutral" />
-              <template #content>
-                <div class="p-4 space-y-3 w-64">
-                  <p class="text-sm font-medium">
-                    Create New List
-                  </p>
-                  <UInput v-model="newListName" placeholder="List name" @keyup.enter="createList" />
-                  <UButton
-                    class="w-full"
-                    :loading="isCreatingList"
-                    :disabled="!newListName"
-                    @click="createList"
-                  >
-                    Create
-                  </UButton>
-                </div>
-              </template>
-            </UPopover>
-            <UButton
-              v-if="selectedListId"
-              icon="i-lucide-trash-2"
-              variant="soft"
-              color="error"
-              :loading="isDeletingList"
-              @click="deleteList"
-            />
+          <div class="flex flex-col gap-2">
+            <div class="flex items-center gap-2">
+              <USelect
+                v-model="selectedListId"
+                :items="shoppingLists || []"
+                label-key="name"
+                value-key="id"
+                placeholder="Select a list"
+                class="flex-1"
+              />
+              <UPopover>
+                <UButton icon="i-lucide-plus" variant="soft" color="neutral" />
+                <template #content>
+                  <div class="p-4 space-y-3 w-64">
+                    <p class="text-sm font-medium">
+                      Create New List
+                    </p>
+                    <UInput v-model="newListName" placeholder="List name" @keyup.enter="createList" />
+                    <UButton
+                      class="w-full"
+                      :loading="isCreatingList"
+                      :disabled="!newListName"
+                      @click="createList"
+                    >
+                      Create
+                    </UButton>
+                  </div>
+                </template>
+              </UPopover>
+              <UButton
+                v-if="selectedListId"
+                icon="i-lucide-trash-2"
+                variant="soft"
+                color="error"
+                :loading="isDeletingList"
+                @click="deleteList"
+              />
+            </div>
+
+            <p v-if="itemsNotShownSummary" class="text-xs text-gray-500 px-1 italic">
+              {{ itemsNotShownSummary }}
+            </p>
           </div>
 
           <div v-if="!selectedListId" class="text-center py-10 text-gray-500">
