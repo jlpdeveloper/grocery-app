@@ -141,26 +141,13 @@ const { data: listItems } = await useAsyncData('shopping-list', async () => {
   watch: [user, selectedListId]
 })
 
-const groupedShoppingList = computed(() => {
-  if (!listItems.value) return {}
-
-  const groups: Record<string, typeof listItems.value> = {}
-
-  // Sort by user name first as requested
-  const sortedItems = [...listItems.value].sort((a, b) => {
-    const nameA = a.user_profile?.name || ''
-    const nameB = b.user_profile?.name || ''
+const sortedListItems = computed(() => {
+  if (!listItems.value) return []
+  return [...listItems.value].sort((a, b) => {
+    const nameA = a.user_profile?.name || 'Anonymous'
+    const nameB = b.user_profile?.name || 'Anonymous'
     return nameA.localeCompare(nameB)
   })
-
-  sortedItems.forEach((item) => {
-    const userName = item.user_profile?.name || 'Anonymous'
-    if (!groups[userName]) {
-      groups[userName] = []
-    }
-    groups[userName].push(item)
-  })
-  return groups
 })
 
 // Fetch all recurring items (all users have read access for suggestions)
@@ -576,43 +563,43 @@ function formatDate(dateString: string) {
               </form>
             </UCard>
 
-            <div v-for="(items, userName) in groupedShoppingList" :key="userName" class="space-y-2">
-              <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wider px-2">
-                {{ userName }}'s List
-              </h2>
-              <UCard :ui="{ body: 'p-0' }">
-                <ul class="divide-y divide-gray-200 dark:divide-gray-800">
-                  <li v-for="listItem in items" :key="listItem.id" class="p-3 flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                      <UCheckbox
-                        :model-value="checkedItems.has(listItem.id)"
-                        @update:model-value="(val) => {
-                          if (val) {
-                            checkedItems.add(listItem.id)
-                          }
-                          else {
-                            checkedItems.delete(listItem.id)
-                          }
-                          // Trigger reactivity for the Set
-                          checkedItems = new Set(checkedItems)
-                        }"
-                      />
-                      <span :class="{ 'line-through text-gray-400': checkedItems.has(listItem.id) }">
-                        {{ listItem.name }}
-                      </span>
-                      <span class="text-xs text-gray-400">x{{ listItem.quantity }}</span>
-                    </div>
-                    <UButton
-                      color="error"
-                      variant="ghost"
-                      icon="i-lucide-trash-2"
-                      size="xs"
-                      @click="deleteItem(listItem.id)"
+            <UCard v-if="sortedListItems.length > 0" :ui="{ body: 'p-0' }">
+              <ul class="divide-y divide-gray-200 dark:divide-gray-800">
+                <li v-for="listItem in sortedListItems" :key="listItem.id" class="p-3 flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <UCheckbox
+                      :model-value="checkedItems.has(listItem.id)"
+                      @update:model-value="(val) => {
+                        if (val) {
+                          checkedItems.add(listItem.id)
+                        }
+                        else {
+                          checkedItems.delete(listItem.id)
+                        }
+                        // Trigger reactivity for the Set
+                        checkedItems = new Set(checkedItems)
+                      }"
                     />
-                  </li>
-                </ul>
-              </UCard>
-            </div>
+                    <div class="flex flex-col">
+                      <div class="flex items-center gap-2">
+                        <span :class="{ 'line-through text-gray-400': checkedItems.has(listItem.id) }">
+                          {{ listItem.name }}
+                        </span>
+                        <span class="text-xs text-gray-400">x{{ listItem.quantity }}</span>
+                      </div>
+                      <span class="text-[10px] text-gray-500">Added by: {{ listItem.user_profile?.name || 'Anonymous' }}</span>
+                    </div>
+                  </div>
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    size="xs"
+                    @click="deleteItem(listItem.id)"
+                  />
+                </li>
+              </ul>
+            </UCard>
 
             <div v-if="listItems && listItems.length > 0" class="flex justify-end pt-2">
               <UButton
